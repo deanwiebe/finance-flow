@@ -1,79 +1,45 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
-
-
+import React, { useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
-import Upload from './pages/Upload';
+import Uploads from './pages/Upload';
 import Reports from './pages/Reports';
+import Login from './pages/Login';
 
-export default function App() {
+const App = () => {
+  // Initialize logged-in state based on localized data
+  const [isLoggedIn, setIsLoggedIn] = useState(window.financeFlowData?.isLoggedIn === '1');
+
   return (
-    <Router>
-      <div className="flex h-screen bg-gray-100">
+    <div className="flex flex-row" style={{ height: '100vh' }}>
+      {isLoggedIn && <Sidebar />}
 
-        {/* Sidebar */}
-        <aside className="w-64 bg-white shadow-md">
-          <div className="p-6 text-2xl font-bold text-green-600">
-            Finance Flow
-          </div>
-          <nav className="mt-10">
-            <ul>
-              <li>
-                <NavLink 
-                  to="/" 
-                  className={({ isActive }) => 
-                    `block py-2.5 px-4 rounded text-gray-700 hover:bg-green-100 ${
-                      isActive ? 'bg-green-200 font-semibold' : ''
-                    }`
-                  }
-                  end
-                >
-                  Dashboard
-                </NavLink>
-              </li>
-              <li>
-                <NavLink 
-                  to="/upload" 
-                  className={({ isActive }) => 
-                    `block py-2.5 px-4 rounded text-gray-700 hover:bg-green-100 ${
-                      isActive ? 'bg-green-200 font-semibold' : ''
-                    }`
-                  }
-                >
-                  Upload CSV
-                </NavLink>
-              </li>
-              <li>
-                <NavLink 
-                  to="/reports" 
-                  className={({ isActive }) => 
-                    `block py-2.5 px-4 rounded text-gray-700 hover:bg-green-100 ${
-                      isActive ? 'bg-green-200 font-semibold' : ''
-                    }`
-                  }
-                >
-                  Reports
-                </NavLink>
-              </li>
-              <li>
-                <a href="#" className="block py-2.5 px-4 rounded hover:bg-green-100 text-gray-700">
-                  Settings
-                </a>
-              </li>
-            </ul>
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-10 overflow-y-auto justify-items-center content-center">
+      <main className={`flex-1 flex p-10 justify-center ${isLoggedIn ? 'basis-2/3' : 'basis-full'}`}>
+        <div>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route
+              path="/"
+              element={
+                isLoggedIn ? (
+                  <Dashboard />
+                ) : (
+                  <Login onLoginSuccess={() => setIsLoggedIn(true)} />
+                )
+              }
+            />
+            <Route
+              path="/upload"
+              element={isLoggedIn ? <Uploads /> : <Navigate to="/" />}
+            />
+            <Route
+              path="/reports"
+              element={isLoggedIn ? <Reports /> : <Navigate to="/" />}
+            />
           </Routes>
-        </main>
-
-      </div>
-    </Router>
+        </div>
+      </main>
+    </div>
   );
-}
+};
+
+export default App;

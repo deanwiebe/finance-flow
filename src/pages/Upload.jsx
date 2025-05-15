@@ -27,20 +27,21 @@ export default function Upload() {
         console.log('Parsed Data:', cleanedData);
 
         // Dynamically build the REST API URL
-        // Determine REST API URL based on environment
-          let apiUrl = '';
+        let apiUrl = '';
 
-          if (window.location.hostname === 'localhost') {
-            // Vite dev server (assumes you're proxying in vite.config.js OR using full URL)
-            apiUrl = 'http://finance-flow.local/wp-json/finance-flow/v1/upload';
-          } else {
-            // Production (served by WordPress, same domain)
-            apiUrl = `${window.location.origin}/wp-json/finance-flow/v1/upload`;
-          }
-
+        if (window.location.hostname === 'localhost') {
+          apiUrl = 'http://finance-flow.local/wp-json/finance-flow/v1/upload';
+        } else {
+          apiUrl = `${window.location.origin}/wp-json/finance-flow/v1/upload`;
+        }
 
         axios
-          .post(apiUrl, cleanedData)
+          .post(apiUrl, cleanedData, {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-WP-Nonce': financeFlowData.nonce,  // <-- Nonce header added here
+            },
+          })
           .then((response) => {
             console.log('Upload Success:', response.data);
             setUploadStatus('✅ Upload successful!');

@@ -1,24 +1,52 @@
 <?php
-// Enqueue Vite-built React app
-function finance_flow_enqueue_assets() {
-    // Get theme directory
-    $theme_dir = get_template_directory_uri();
 
-    // Enqueue the built main.js file
+// Enqueue the React app's JS and CSS assets
+function finance_flow_enqueue_scripts() {
     wp_enqueue_script(
         'finance-flow-react',
-        $theme_dir . '/dist/assets/index.js',
-        array(), // No dependencies
-        null,    // No version (or could use filemtime)
-        true     // Load in footer
+        get_template_directory_uri() . '/dist/assets/index.js',
+        array(),
+        null,
+        true
     );
 
-    // Optionally, enqueue built CSS (if Vite generated CSS file)
     wp_enqueue_style(
         'finance-flow-style',
-        $theme_dir . '/dist/assets/index.css',
+        get_template_directory_uri() . '/dist/assets/index.css',
         array(),
         null
     );
+
+    //Nonce Value
+    wp_localize_script('finance-flow-react', 'financeFlowData', array(
+        'nonce' => wp_create_nonce('wp_rest'),
+        'user' => wp_get_current_user(),
+        'isLoggedIn' => is_user_logged_in() ? '1' : '0',
+    ));
+
 }
-add_action('wp_enqueue_scripts', 'finance_flow_enqueue_assets');
+add_action('wp_enqueue_scripts', 'finance_flow_enqueue_scripts');
+
+// Redirect non-admins away from any wp-admin page (except AJAX)
+function restrict_wp_admin_access() {
+    if (is_admin() && !current_user_can('administrator') && !(defined('DOING_AJAX') && DOING_AJAX)) {
+        wp_redirect(home_url()); // Or your React app root
+        exit;
+    }
+}
+add_action('admin_init', 'restrict_wp_admin_access');
+
+// Hide the admin bar for non-admin users
+function hide_admin_bar_for_non_admins() {
+    if (!current_user_can('administrator')) {
+        show_admin_bar(false);
+    }
+}
+add_action('after_setup_theme', 'hide_admin_bar_for_non_admins');
+
+
+//Redirect after Logout 
+add_action('wp_logout', function() {
+    wp_redirect(home_url('/')); // or '/login' if you want
+    exit();
+});
