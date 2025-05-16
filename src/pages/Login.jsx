@@ -42,9 +42,9 @@ const Login = () => {
   };
 
   return (
-    <div className="flex h-screen bg-green-50 text-gray-800">
+    <div className="flex flex-col md:flex-row h-screen bg-green-50 text-gray-800">
       {/* Left Panel */}
-      <div className="w-1/2 bg-green-600 text-white p-10 flex flex-col justify-center">
+      <div className="w-full md:w-1/2 bg-green-600 text-white p-10 flex flex-col justify-center">
         <h1 className="text-4xl font-bold mb-4">Finance Flow</h1>
         <p className="text-lg mb-6">
           Upload your bank statements, track your income and expenses, and get insightful reports to improve your finances.
@@ -58,7 +58,7 @@ const Login = () => {
       </div>
 
       {/* Right Panel */}
-      <div className="w-1/2 flex flex-col justify-center items-center p-10">
+      <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 sm:p-10">
         <div className="w-full max-w-md">
           <div className="flex space-x-4 mb-6">
             <button
@@ -122,7 +122,6 @@ const Login = () => {
               {isLogin ? 'Login' : 'Register'}
             </button>
           </form>
-          
         </div>
       </div>
     </div>

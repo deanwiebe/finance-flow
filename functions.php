@@ -22,6 +22,7 @@ function finance_flow_enqueue_scripts() {
         'nonce' => wp_create_nonce('wp_rest'),
         'user' => wp_get_current_user(),
         'isLoggedIn' => is_user_logged_in() ? '1' : '0',
+        'username'   => is_user_logged_in() ? wp_get_current_user()->user_login : '',
     ));
 
 }

@@ -1,75 +1,59 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
-const user = window.financeFlowData?.user;
-const isLoggedIn = window.financeFlowData?.isLoggedIn;
-const displayName = user?.data?.display_name || user?.data?.user_login;
+const Sidebar = ({ onClose }) => {
+  const location = useLocation();
+  const username = window.financeFlowData?.username || 'User';
 
-const Sidebar = () => {
-const handleLogout = async () => {
-  await fetch('http://finance-flow.local/wp-json/finance-flow/v1/logout', {
-    method: 'POST',
-    credentials: 'include',
-  });
+  const handleLogout = async () => {
+    await fetch('http://finance-flow.local/wp-json/finance-flow/v1/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    toast.success('Logged out successfully!');
+    window.location.href = '/';
+  };
 
-  // Optional: Clear any other app state or cookies here
-  window.location.href = '/'; 
-};
-
-  const baseClasses =
-    'block w-full text-center py-3 px-6 rounded-xl bg-white text-gray-800 font-medium shadow hover:shadow-lg hover:scale-[1.03] hover:bg-green-100 transition-all duration-200';
-
-  const activeClasses = 'bg-green-300 text-green-900 shadow-lg';
+  const linkStyle = (path) =>
+    `block px-4 py-2 rounded-md text-white hover:bg-green-700 ${
+      location.pathname === path ? 'bg-green-700' : ''
+    }`;
 
   return (
-    <aside className="basis-1/4 flex flex-col items-center w-64 bg-gray-50 shadow-lg h-full py-8">
-
-      {isLoggedIn && (
-        <div className="text-2xl font-extrabold text-green-600 mb-10">
-          Welcome, {displayName}
-        </div>
+    <aside className="h-full bg-green-600 text-white w-full md:w-full p-6 shadow-md rounded-l-2xl">
+      {/* Mobile Close Button */}
+      {onClose && (
+        <button
+          className="absolute top-4 right-4 text-white text-2xl md:hidden"
+          onClick={onClose}
+        >
+          &times;
+        </button>
       )}
+      <p className="mb-4">👋 Welcome, <strong>{username}</strong></p>
+      <h2 className="text-2xl font-bold mb-8">Finance Flow</h2>
 
-      <nav className="w-full px-4">
-        <ul className="space-y-4">
-          <li>
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `${baseClasses} ${isActive ? activeClasses : ''}`
-              }
-            >
-              Dashboard
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/upload"
-              className={({ isActive }) =>
-                `${baseClasses} ${isActive ? activeClasses : ''}`
-              }
-            >
-              Upload CSV
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/reports"
-              className={({ isActive }) =>
-                `${baseClasses} ${isActive ? activeClasses : ''}`
-              }
-            >
-              Reports
-            </NavLink>
-          </li>
-          <li>
-            <button onClick={handleLogout} className={`${baseClasses} text-red-600 hover:bg-red-100`}>
-              Logout
-            </button>
-          </li>
-        </ul>
+      <nav className="space-y-2">
+        <Link to="/" className={linkStyle('/')}>
+          Dashboard
+        </Link>
+        <Link to="/upload" className={linkStyle('/upload')}>
+          Upload CSV
+        </Link>
+        <Link to="/reports" className={linkStyle('/reports')}>
+          Reports
+        </Link>
       </nav>
+
+      <div className="mt-10 border-t border-white pt-6">
+        <button
+          onClick={handleLogout}
+          className="w-full text-left px-4 py-2 rounded-md bg-green-500 hover:bg-green-700"
+        >
+          Log Out
+        </button>
+      </div>
     </aside>
   );
 };
