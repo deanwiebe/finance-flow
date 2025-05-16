@@ -3,13 +3,13 @@ import Papa from 'papaparse';
 import axios from 'axios';
 
 function convertDateFormat(dateStr) {
-  // Input: "MM/DD/YYYY", Output: "YYYY-MM-DD"
-  const parts = dateStr.split('/');
-  if(parts.length !== 3) return null;
-  const [month, day, year] = parts;
-  // Basic validation for numbers
-  if (!month || !day || !year) return null;
-  return `${year.trim()}-${month.trim().padStart(2, '0')}-${day.trim().padStart(2, '0')}`;
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return null;
+    const [month, day, year] = parts;
+    return `${year.trim()}-${month.trim().padStart(2, '0')}-${day.trim().padStart(2, '0')}`;
+  }
+  return dateStr.trim(); // already in YYYY-MM-DD format
 }
 
 export default function Upload() {
@@ -23,28 +23,45 @@ export default function Upload() {
       header: false,
       skipEmptyLines: true,
       complete: function(results) {
-        const cleanedData = results.data.map(row => {
+        const data = results.data;
+
+        const cleanedData = data.map(row => {
+          const dateRaw = row[0]?.trim();
+          const desc = row[1]?.trim();
+          const col2 = row[2]?.trim();
+          const col3 = row[3]?.trim();
+          const balance = parseFloat(row[4]) || 0;
+
+          let expense = 0;
+          let income = 0;
+
+          // Handle 5-column format where either col2 or col3 has the value
+          if (col2 && !col3) {
+            expense = parseFloat(col2) || 0;
+          } else if (!col2 && col3) {
+            income = parseFloat(col3) || 0;
+          } else if (col2 && col3) {
+            expense = parseFloat(col2) || 0;
+            income = parseFloat(col3) || 0;
+          }
+
           return {
-            date: convertDateFormat(row[0]?.trim()),
-            description: row[1]?.trim(),
-            expense: parseFloat(row[2]) || 0,
-            income: parseFloat(row[3]) || 0,
-            balance: parseFloat(row[4]) || 0,
+            date: convertDateFormat(dateRaw),
+            description: desc,
+            expense,
+            income,
+            balance,
           };
         });
 
-        // Filter out any rows where date conversion failed
         const filteredData = cleanedData.filter(row => row.date !== null);
 
         setParsedData(filteredData);
         console.log('Parsed Data:', filteredData);
 
-        let apiUrl = '';
-        if (window.location.hostname === 'localhost') {
-          apiUrl = 'http://finance-flow.local/wp-json/finance-flow/v1/upload';
-        } else {
-          apiUrl = `${window.location.origin}/wp-json/finance-flow/v1/upload`;
-        }
+        let apiUrl = window.location.hostname === 'localhost'
+          ? 'http://finance-flow.local/wp-json/finance-flow/v1/upload'
+          : `${window.location.origin}/wp-json/finance-flow/v1/upload`;
 
         axios.post(apiUrl, filteredData, {
           headers: {
@@ -54,7 +71,7 @@ export default function Upload() {
         })
         .then(response => {
           console.log('Upload Success:', response.data);
-          setUploadStatus('✅ Upload successful!');
+          setUploadStatus(`✅ Upload successful! (${response.data.rows_inserted} rows)`);
         })
         .catch(error => {
           console.error('Upload Error:', error);
@@ -67,11 +84,8 @@ export default function Upload() {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Upload CSV</h2>
-
       <input type="file" accept=".csv" onChange={handleUpload} className="mb-4" />
-
       {uploadStatus && <p className="mb-4">{uploadStatus}</p>}
-
       {parsedData.length > 0 && (
         <table className="table-auto border-collapse border border-gray-300 w-full">
           <thead>

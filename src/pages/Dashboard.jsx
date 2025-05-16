@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   const recentTransactions = [...data]
     .sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date))
-    .slice(0, 5);
+    .slice(0, 15);
 
   const hasUploaded = data.length > 0;
   const lastUploadDate = hasUploaded
