@@ -1,257 +1,198 @@
 import React, { useEffect, useState } from 'react';
-import { Pie, Bar } from 'react-chartjs-2';
+import { Bar, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
-  ArcElement,
   BarElement,
+  ArcElement,
   CategoryScale,
   LinearScale,
   Tooltip,
   Legend
 } from 'chart.js';
 
-ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+ChartJS.register(BarElement, ArcElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 export default function Reports() {
-  const [overallData, setOverallData] = useState(null);
-  const [incomeSourcesData, setIncomeSourcesData] = useState(null);
-  const [expenseSourcesData, setExpenseSourcesData] = useState(null); // NEW for expense pie
-
-  // Dates for filtering
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-
-  // Format date to YYYY-MM-DD for inputs and requests
-  const formatDate = (date) => {
-    const d = new Date(date);
-    const month = `${d.getMonth() + 1}`.padStart(2, '0');
-    const day = `${d.getDate()}`.padStart(2, '0');
-    const year = d.getFullYear();
-    return [year, month, day].join('-');
-  };
-
-  // On mount, set default date range (last 3 months)
-  useEffect(() => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-    setStartDate(formatDate(threeMonthsAgo));
-    setEndDate(formatDate(now));
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  useEffect(() => {
+    fetch(`${financeFlowData.apiUrl}/report`, {
+      headers: {
+        'X-WP-Nonce': financeFlowData.nonce
+      }
+    })
+      .then(res => res.json())
+      .then(response => {
+        setData(response.user_data || []);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching report data:', error);
+        setLoading(false);
+      });
   }, []);
 
-  // Fetch overall income vs expense, refetch when dates change
-  useEffect(() => {
-    if (!startDate || !endDate) return;
+  const getLast6Months = () => {
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+      months.push({ key, label });
+    }
+    return months;
+  };
 
-    const url = new URL('/wp-json/finance-flow/v1/user-data', window.location.origin);
-    url.searchParams.append('start_date', startDate);
-    url.searchParams.append('end_date', endDate);
-
-    fetch(url, {
-      headers: {
-        'X-WP-Nonce': financeFlowData.nonce
+  const groupedBar = getLast6Months().map(({ key, label }) => {
+    let income = 0;
+    let expense = 0;
+    data.forEach(item => {
+      const dateKey = item.transaction_date?.slice(0, 7); // "YYYY-MM"
+      if (dateKey === key) {
+        income += parseFloat(item.income || 0);
+        expense += parseFloat(item.expense || 0);
       }
-    })
-      .then(res => res.json())
-      .then(data => {
-        // Defensive check if data is array
-        if (!Array.isArray(data)) {
-          setOverallData(null);
-          setExpenseSourcesData(null);
-          return;
-        }
+    });
+    return { label, income, expense };
+  });
 
-        // Overall income and expense totals
-        const totalIncome = data.reduce((sum, row) => sum + parseFloat(row.income || 0), 0);
-        const totalExpense = data.reduce((sum, row) => sum + parseFloat(row.expense || 0), 0);
+  const pieDataMap = {};
+  data.forEach(item => {
+    const month = item.transaction_date?.slice(0, 7);
+    if (month === selectedMonth && parseFloat(item.expense) > 0) {
+      const label = item.description || 'Other';
+      if (!pieDataMap[label]) pieDataMap[label] = 0;
+      pieDataMap[label] += parseFloat(item.expense);
+    }
+  });
 
-        setOverallData({
-          labels: ['Income', 'Expense'],
-          datasets: [
-            {
-              label: 'Amount',
-              data: [totalIncome, totalExpense],
-              backgroundColor: ['#4ade80', '#f87171'],
-              borderColor: ['#22c55e', '#ef4444'],
-              borderWidth: 1
-            }
-          ]
-        });
+  const incomeBySourceMap = {};
+  data.forEach(item => {
+    const month = item.transaction_date?.slice(0, 7);
+    if (month === selectedMonth && parseFloat(item.income) > 0) {
+      const label = item.description || 'Other';
+      if (!incomeBySourceMap[label]) incomeBySourceMap[label] = 0;
+      incomeBySourceMap[label] += parseFloat(item.income);
+    }
+  });
 
-        // Aggregate expenses by description for expense pie chart
-        const expenseMap = {};
-        data.forEach(row => {
-          const expense = parseFloat(row.expense || 0);
-          const desc = row.description || 'Unknown';
-          if (expense > 0) {
-            if (!expenseMap[desc]) {
-              expenseMap[desc] = 0;
-            }
-            expenseMap[desc] += expense;
-          }
-        });
-
-        const expenseLabels = Object.keys(expenseMap);
-        const expenseData = Object.values(expenseMap);
-
-        setExpenseSourcesData({
-          labels: expenseLabels,
-          datasets: [
-            {
-              label: 'Expenses',
-              data: expenseData,
-              backgroundColor: expenseLabels.map(() => `hsl(${Math.random() * 360}, 70%, 70%)`), // random pastel colors
-              borderColor: '#ef4444',
-              borderWidth: 1
-            }
-          ]
-        });
-      })
-      .catch(() => {
-        setOverallData(null);
-        setExpenseSourcesData(null);
-      });
-  }, [startDate, endDate]);
-
-  // Fetch income by source, refetch when dates change
-  useEffect(() => {
-    if (!startDate || !endDate) return;
-
-    const url = new URL('/wp-json/finance-flow/v1/income-sources', window.location.origin);
-    url.searchParams.append('start_date', startDate);
-    url.searchParams.append('end_date', endDate);
-
-    fetch(url, {
-      headers: {
-        'X-WP-Nonce': financeFlowData.nonce
+  const pieChart = {
+    labels: Object.keys(pieDataMap),
+    datasets: [
+      {
+        label: 'Expenses',
+        data: Object.values(pieDataMap),
+        backgroundColor: [
+          '#EF4444', '#F97316', '#FACC15', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'
+        ]
       }
-    })
-      .then(res => res.json())
-      .then(groupedData => {
-        if (!groupedData || typeof groupedData !== 'object') {
-          setIncomeSourcesData(null);
-          return;
+    ]
+  };
+
+  const incomeChart = {
+    labels: Object.keys(incomeBySourceMap),
+    datasets: [
+      {
+        label: 'Income',
+        data: Object.values(incomeBySourceMap),
+        backgroundColor: [
+          '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#FACC15', '#EF4444'
+        ]
+      }
+    ]
+  };
+
+  const barChart = {
+    labels: groupedBar.map(item => item.label),
+    datasets: [
+      {
+        label: 'Income',
+        data: groupedBar.map(item => item.income),
+        backgroundColor: 'rgba(34, 197, 94, 0.7)'
+      },
+      {
+        label: 'Expense',
+        data: groupedBar.map(item => item.expense),
+        backgroundColor: 'rgba(239, 68, 68, 0.7)'
+      }
+    ]
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        callbacks: {
+          label: context => `$${context.raw.toFixed(2)}`
         }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: value => `$${value}`
+        }
+      }
+    }
+  };
 
-        const incomeMap = {};
-
-        Object.values(groupedData).forEach(monthEntries => {
-          monthEntries.forEach(entry => {
-            const { description, total_income } = entry;
-            if (total_income > 0) {
-              if (!incomeMap[description]) {
-                incomeMap[description] = 0;
-              }
-              incomeMap[description] += total_income;
-            }
-          });
-        });
-
-        const labels = Object.keys(incomeMap);
-        const data = Object.values(incomeMap);
-
-        setIncomeSourcesData({
-          labels,
-          datasets: [
-            {
-              label: 'Total Income',
-              data,
-              backgroundColor: '#4ade80',
-              borderColor: '#22c55e',
-              borderWidth: 1
-            }
-          ]
-        });
-      })
-      .catch(() => {
-        setIncomeSourcesData(null);
-      });
-  }, [startDate, endDate]);
+  if (loading) {
+    return <div className="p-6 text-center text-gray-600">Loading report...</div>;
+  }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Reports</h1>
-      <p className="text-gray-700 mb-6">
-        View charts and reports based on your uploaded data.
-      </p>
+    <div className="p-6 space-y-8">
+      <h1 className="text-2xl font-bold text-gray-800">Financial Reports</h1>
 
-      {/* Date filters */}
-      <div className="mb-8 flex gap-4 max-w-md mx-auto">
-        <div>
-          <label htmlFor="start-date" className="block mb-1 font-semibold">Start Date</label>
-          <input
-            id="start-date"
-            type="date"
-            value={startDate}
-            max={endDate || ''}
-            onChange={e => setStartDate(e.target.value)}
-            className="border rounded p-2"
-          />
-        </div>
-        <div>
-          <label htmlFor="end-date" className="block mb-1 font-semibold">End Date</label>
-          <input
-            id="end-date"
-            type="date"
-            value={endDate}
-            min={startDate || ''}
-            onChange={e => setEndDate(e.target.value)}
-            className="border rounded p-2"
-          />
-        </div>
+      {/* Bar Chart */}
+      <div className="bg-white rounded-2xl shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Income vs. Expense (Last 6 Months)</h2>
+        <Bar data={barChart} options={chartOptions} />
       </div>
 
-      {/* Overall Income vs Expense */}
-      {overallData ? (
-        <div className="max-w-md mx-auto mb-12">
-          <h2 className="text-xl font-semibold mb-4">Income vs Expense</h2>
-          <Pie data={overallData} />
-        </div>
-      ) : (
-        <p>Loading overall chart...</p>
-      )}
-
-      {/* Income by Source */}
-      {incomeSourcesData ? (
-        <div className="max-w-4xl mx-auto mb-12">
-          <h2 className="text-xl font-semibold mb-4">Income by Source</h2>
-          <Bar
-            data={incomeSourcesData}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  display: false
-                },
-                tooltip: {
-                  callbacks: {
-                    label: context => `Income: $${context.raw.toFixed(2)}`
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    callback: value => `$${value}`
-                  }
-                }
-              }
-            }}
+      {/* Expenses by Category */}
+      <div className="bg-white rounded-2xl shadow p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-700">Expenses by Category</h2>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(e.target.value)}
+            className="mt-2 sm:mt-0 border border-gray-300 rounded px-3 py-1 text-sm"
           />
         </div>
-      ) : (
-        <p>Loading income sources chart...</p>
-      )}
+        {pieChart.labels.length > 0 ? (
+          <Pie data={pieChart} />
+        ) : (
+          <p className="text-sm text-gray-500">No expense data for selected month.</p>
+        )}
+      </div>
 
-      {/* Expense by Source (NEW Pie chart) */}
-      {expenseSourcesData ? (
-        <div className="max-w-md mx-auto">
-          <h2 className="text-xl font-semibold mb-4">Expenses by Category</h2>
-          <Pie data={expenseSourcesData} />
+      {/* Income by Source */}
+      <div className="bg-white rounded-2xl shadow p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-700">Income by Source</h2>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(e.target.value)}
+            className="mt-2 sm:mt-0 border border-gray-300 rounded px-3 py-1 text-sm"
+          />
         </div>
-      ) : (
-        <p>Loading expense chart...</p>
-      )}
+        {incomeChart.labels.length > 0 ? (
+          <Pie data={incomeChart} />
+        ) : (
+          <p className="text-sm text-gray-500">No income data for selected month.</p>
+        )}
+      </div>
     </div>
   );
 }

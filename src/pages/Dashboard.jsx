@@ -6,21 +6,25 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/wp-json/finance-flow/v1/user-data', {
-      headers: {
-        'X-WP-Nonce': financeFlowData.nonce
+  fetch('/wp-json/finance-flow/v1/report', {
+    headers: {
+      'X-WP-Nonce': financeFlowData.nonce
+    }
+  })
+    .then(res => res.json())
+    .then(response => {
+      // Assume the API returns { user_data: [], income_sources: [] }
+      if (!Array.isArray(response.user_data)) {
+        throw new Error('user_data is not an array');
       }
+      setData(response.user_data);
+      setLoading(false);
     })
-      .then(res => res.json())
-      .then(data => {
-        setData(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching dashboard data:', error);
-        setLoading(false);
-      });
-  }, []);
+    .catch(error => {
+      console.error('Error fetching dashboard data:', error);
+      setLoading(false);
+    });
+}, []);
 
   const totalIncome = data.reduce((sum, item) => sum + parseFloat(item.income || 0), 0);
   const totalExpenses = data.reduce((sum, item) => sum + parseFloat(item.expense || 0), 0);
@@ -28,7 +32,7 @@ export default function Dashboard() {
 
   const recentTransactions = [...data]
     .sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date))
-    .slice(0, 10);
+    .slice(0, 15);
 
   const hasUploaded = data.length > 0;
   const lastUploadDate = hasUploaded
