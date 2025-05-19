@@ -34,8 +34,8 @@ const App = () => {
       </button>
 
       {/* Main Content Panel */}
-      <div className="flex-1 w-full p-6 sm:p-10 overflow-y-auto flex justify-center items-center">
-        <div className="w-full max-w-4xl bg-white rounded-2xl shadow-md border p-6 overflow-auto">
+      <div className="flex-1 w-full p-6 sm:p-10 overflow-y-auto">
+        <div className="w-full max-w-4xl bg-white rounded-2xl shadow-md border p-6">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/upload" element={<Uploads />} />
@@ -44,6 +44,7 @@ const App = () => {
           </Routes>
         </div>
       </div>
+
     </div>
   );
 };
