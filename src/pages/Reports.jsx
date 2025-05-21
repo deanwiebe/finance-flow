@@ -1,16 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar, Pie, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   BarElement,
   ArcElement,
   CategoryScale,
   LinearScale,
+  PointElement,
+  LineElement,
   Tooltip,
   Legend
 } from 'chart.js';
 
-ChartJS.register(BarElement, ArcElement, CategoryScale, LinearScale, Tooltip, Legend);
+ChartJS.register(
+  BarElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend
+);
 
 export default function Reports() {
   const [data, setData] = useState([]);
@@ -53,7 +64,7 @@ export default function Reports() {
     let income = 0;
     let expense = 0;
     data.forEach(item => {
-      const dateKey = item.transaction_date?.slice(0, 7); // "YYYY-MM"
+      const dateKey = item.transaction_date?.slice(0, 7);
       if (dateKey === key) {
         income += parseFloat(item.income || 0);
         expense += parseFloat(item.expense || 0);
@@ -124,6 +135,66 @@ export default function Reports() {
     ]
   };
 
+  const netBalanceData = [];
+  let runningBalance = 0;
+  const sortedData = [...data].sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
+  sortedData.forEach(item => {
+    const date = item.transaction_date;
+    const income = parseFloat(item.income || 0);
+    const expense = parseFloat(item.expense || 0);
+    runningBalance += income - expense;
+    netBalanceData.push({ date, balance: runningBalance });
+  });
+
+  const netBalanceChart = {
+    labels: netBalanceData.map(item => item.date),
+    datasets: [
+      {
+        label: 'Net Balance',
+        data: netBalanceData.map(item => item.balance),
+        borderColor: 'rgba(59, 130, 246, 0.7)',
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        tension: 0.3,
+        fill: true
+      }
+    ]
+  };
+
+  const monthlyTotals = getLast6Months().map(({ key, label }) => {
+    let income = 0;
+    let expense = 0;
+    data.forEach(item => {
+      const dateKey = item.transaction_date?.slice(0, 7);
+      if (dateKey === key) {
+        income += parseFloat(item.income || 0);
+        expense += parseFloat(item.expense || 0);
+      }
+    });
+    return { label, income, expense };
+  });
+
+  const monthlyLineChart = {
+    labels: monthlyTotals.map(item => item.label),
+    datasets: [
+      {
+        label: 'Income',
+        data: monthlyTotals.map(item => item.income),
+        borderColor: 'rgba(34, 197, 94, 0.8)',
+        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+        tension: 0.3,
+        fill: true
+      },
+      {
+        label: 'Expense',
+        data: monthlyTotals.map(item => item.expense),
+        borderColor: 'rgba(239, 68, 68, 0.8)',
+        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+        tension: 0.3,
+        fill: true
+      }
+    ]
+  };
+
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -156,6 +227,18 @@ export default function Reports() {
       <div className="bg-white rounded-2xl shadow p-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Income vs. Expense (Last 6 Months)</h2>
         <Bar data={barChart} options={chartOptions} />
+      </div>
+
+      {/* Net Balance Over Time */}
+      <div className="bg-white rounded-2xl shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Net Balance Over Time</h2>
+        <Line data={netBalanceChart} options={chartOptions} />
+      </div>
+
+      {/* Monthly Income vs. Expense */}
+      <div className="bg-white rounded-2xl shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Monthly Income vs. Expense</h2>
+        <Line data={monthlyLineChart} options={chartOptions} />
       </div>
 
       {/* Expenses by Category */}
