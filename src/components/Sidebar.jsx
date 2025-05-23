@@ -1,19 +1,44 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const Sidebar = ({ onClose }) => {
   const location = useLocation();
   const username = window.financeFlowData?.username || 'User';
 
-  const handleLogout = async () => {
-    await fetch('http://finance-flow.local/wp-json/finance-flow/v1/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-    toast.success('Logged out successfully!');
-    window.location.href = '/';
-  };
+const handleLogout = async () => {
+  try {
+    let apiUrl =
+      window.location.hostname === 'localhost'
+        ? 'http://finance-flow.local/wp-json/finance-flow/v1/logout'
+        : `${window.location.origin}/wp-json/finance-flow/v1/logout`;
+
+    const response = await axios.post(
+      apiUrl,
+      {},
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': financeFlowData.nonce,
+        },
+        withCredentials: true,
+      }
+    );
+
+    console.log('Logout response:', response);
+
+     if (response.status === 200) {
+  window.location.href = '/';
+    } else {
+      // Defensive: Show entire data if message field is missing
+      console.error('Logout failed:', response.data.message || response.data);
+    }
+  } catch (error) {
+    console.error('Logout error:', error.response ? error.response.data : error.message);
+  }
+};
+
 
   const linkStyle = (path) =>
     `block px-4 py-2 rounded-md text-white hover:bg-green-700 ${
