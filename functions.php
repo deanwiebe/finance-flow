@@ -61,6 +61,8 @@ function finance_flow_redirect_react_routes_to_dashboard() {
         'upload',
         'reports',
         'dashboard',
+        'terms-of-use',
+        'privacy-policy',
         // add more React routes here
     ];
 
